@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Perimetr Debug 19</title>
+  <style>
+    body{margin:0;font-family:-apple-system,system-ui;background:#0b0b0f;color:#fff}
+    #bar{position:fixed;top:8px;left:8px;right:8px;z-index:2147483647;
+      padding:10px 12px;border-radius:14px;border:2px solid rgba(37,99,235,.65);
+      background:rgba(0,0,0,.78);font-weight:900}
+    #btn{position:fixed;bottom:12px;right:12px;z-index:2147483647;
+      padding:12px 14px;border-radius:16px;border:2px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.08);color:#fff;font-weight:900}
+    .wrap{padding:70px 16px}
+    code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <div id="bar">DBG19: loading</div>
+  <button id="btn">Tap Test</button>
+  <div class="wrap">
+    <p>This page uses only inline JS. If the bar doesn't change from <code>loading</code>, Safari isn't running inline scripts on your GitHub Pages site (or you're not getting the updated file).</p>
+  </div>
+
+  <script>
+    (function(){
+      var bar=document.getElementById('bar');
+      function set(msg){ bar.textContent="DBG19: "+msg; }
+      set("inline JS running");
+      var n=0;
+      document.getElementById('btn').addEventListener('click', function(){
+        n++; set("tap ok ("+n+")"); alert("Tap OK ("+n+")");
+      });
+      // show file identity to defeat caching confusion
+      set("inline JS running • "+new Date().toISOString());
+    })();
+  </script>
+</body>
+</html>
