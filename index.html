@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>PERIMETR – iOS Demo (3D)</title>
+
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/favicon.png">
+  <link rel="apple-touch-icon" href="./assets/logo-192.png">
+  <link rel="stylesheet" href="./styles.css">
+
+  <!-- Mapbox GL JS (3D) -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.5.1/mapbox-gl.js"></script>
+</head>
+<body>
+  <div class="phone">
+    <div class="card safe">
+      <header>
+        <div class="brand">
+          <img src="./assets/logo-192.png" alt="PERIMETR logo" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%0A%3Crect%20width%3D%2264%22%20height%3D%2264%22%20fill%3D%22%230a0a0a%22/%3E%3Cpath%20d%3D%22M12%2010h10v44H12V10zm0%200h40v10H12V10zm0%2018h30v10H12V28zm30-18h10v28H42V10z%22%20fill%3D%22%23fff%22/%3E%0A%3Ccircle%20cx%3D%2224%22%20cy%3D%2240%22%20r%3D%222.5%22%20fill%3D%22%23fff%22%20opacity%3D%22.8%22/%3E%3C/svg%3E';">
+          <span>PERIMETR</span>
+        </div>
+        <div class="pill">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">GPS: Not requested</span>
+        </div>
+      </header>
+
+      <main class="content">
+        <!-- LOGIN -->
+        <section class="screen active" id="screenLogin">
+          <h1 class="h1">Sign in</h1>
+          <p class="sub">3D “eagle view” demo • PIN: <b>1234</b></p>
+
+          <div class="field">
+            <label>Department</label>
+            <input id="loginDept" value="Miramar PD" />
+          </div>
+          <div class="field">
+            <label>Badge / Employee ID</label>
+            <input id="loginId" value="1024" />
+          </div>
+          <div class="field">
+            <label>PIN</label>
+            <input id="loginPin" value="1234" inputmode="numeric" />
+          </div>
+
+          <div class="section">
+            <div class="label">Mapbox token (required for 3D)</div>
+            <div class="muted">Paste a <b>public</b> Mapbox access token. Saved on your phone.</div>
+            <div class="field" style="margin-top:10px;">
+              <input id="mbToken" placeholder="pk.eyJ1IjoieW91ci1hY2NvdW50IiwiYSI6Ii4uLiJ9..." />
+            </div>
+            <button class="btn secondary" id="btnSaveToken">SAVE TOKEN</button>
+            <div class="smallnote">No token = demo still loads UI, but map won’t render.</div>
+          </div>
+
+          <button class="btn" id="btnLogin">LOGIN</button>
+        </section>
+
+        <!-- HOME -->
+        <section class="screen" id="screenHome">
+          <h1 class="h1">Perimeter Ops</h1>
+          <p class="sub">3D map • accurate geocoding • quick perimeter</p>
+
+          <button class="btn" id="btnNew">NEW INCIDENT</button>
+          <div style="height:12px"></div>
+          <button class="btn secondary" id="btnActive">ACTIVE INCIDENTS</button>
+          <div style="height:12px"></div>
+          <button class="btn secondary" id="btnScenario">COMMAND DEMO SCENARIO</button>
+
+          <div class="section">
+            <div class="label">Signed in</div>
+            <div class="muted" id="whoami">—</div>
+            <button class="btn ghost" id="btnLogout">LOGOUT</button>
+          </div>
+        </section>
+
+        <!-- SETUP -->
+        <section class="screen" id="screenSetup">
+          <div class="toprow">
+            <div class="title">New Incident</div>
+            <button class="link menubtn" data-menu="1">Menu</button>
+            <button class="link menubtn" data-menu="1">Menu</button>
+            <button class="link" id="btnBackHome">Back</button>
+          </div>
+
+          <div class="section" style="border-top:0;padding-top:10px;">
+            <div class="label">📍 Location</div>
+            <div class="row">
+              <button class="btn secondary" id="btnGps">USE MY GPS</button>
+              <button class="btn secondary" id="btnClear">CLEAR</button>
+            </div>
+
+            <div class="field">
+              <label>Manual address / intersection</label>
+              <input id="addr" placeholder="Miramar Pkwy & Flamingo Rd, Miramar FL" />
+              <div class="row" style="margin-top:8px;">
+                <button class="btn" id="btnSearch">SEARCH</button>
+                <button class="btn secondary" id="btnTapToSet">TAP MAP TO SET</button>
+              </div>
+              <div class="helper" id="addrHelp">After setting a location, generate the perimeter.</div>
+            </div>
+
+            <div class="section">
+              <div class="label">⏱ Minutes: <span id="minLabel">5</span></div>
+              <input id="minSlider" type="range" min="1" max="30" value="5" style="width:100%;" />
+            </div>
+
+            <div class="section">
+              <div class="label">🚶 Method</div>
+              <div class="chipgrid" id="methodGrid">
+                <div class="chip active" data-method="foot">Foot</div>
+                <div class="chip" data-method="vehicle">Vehicle</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="label">🧭 Direction (optional)</div>
+              <div class="chipgrid5" id="dirGrid">
+                <div class="chip small active" data-dir="unknown">—</div>
+                <div class="chip small" data-dir="N">N</div>
+                <div class="chip small" data-dir="E">E</div>
+                <div class="chip small" data-dir="S">S</div>
+                <div class="chip small" data-dir="W">W</div>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="label">🛰️ Map view</div>
+              <div class="chipgrid" id="mapStyleGrid">
+                <div class="chip active" data-style="streets">3D Streets</div>
+                <div class="chip" data-style="satellite">3D Satellite</div>
+              </div>
+            </div>
+
+            <button class="btn" id="btnGenerate">GENERATE PERIMETER</button>
+          </div>
+        </section>
+
+        <!-- INCIDENTS -->
+        <section class="screen" id="screenIncidents">
+          <div class="toprow">
+            <div class="title">Active Incidents</div>
+            <button class="link menubtn" data-menu="1">Menu</button>
+            <button class="link" id="btnBackHome2">Back</button>
+          </div>
+          <div class="section" style="border-top:0;padding-top:10px;">
+            <div id="incidentList" class="muted">No incidents yet.</div>
+          </div>
+        </section>
+
+        
+        <!-- SCENARIO -->
+        <section class="screen" id="screenScenario">
+          <div class="toprow">
+            <div class="title">Command Demo Scenario</div>
+            <button class="link" id="btnBackHome3">Back</button>
+          </div>
+          <div class="section" style="border-top:0;padding-top:10px;">
+            <div class="kpi">
+              <div class="k">Scenario: Armed Robbery • Foot pursuit</div>
+              <div class="v">Demo: build perimeter, assign points, drag-adjust, and track coverage.</div>
+            </div>
+            <div class="section">
+              <div class="label">Setup</div>
+              <div class="muted">
+                1) Load Miramar Pkwy &amp; Flamingo Rd.<br/>
+                2) Foot • 5 min • Direction N.<br/>
+                3) Generate perimeter.
+              </div>
+            </div>
+            <div class="section">
+              <div class="label">Command actions</div>
+              <div class="muted">
+                • Tap each point card to cycle status: <b>—</b> → <b>En route</b> → <b>Covered</b>.<br/>
+                • Drag a point; it snaps to the nearest intersection and updates the label.<br/>
+                • Add update: “Last seen running north behind plaza.” then Apply Update.
+              </div>
+            </div>
+            <div class="section">
+              <button class="btn" id="btnJumpScenario">OPEN MIRAMAR SCENARIO</button>
+              <div class="smallnote">Loads and opens map for a quick command demo.</div>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- TIMELINE -->
+        <section class="screen" id="screenTimeline">
+          <div class="toprow">
+            <div class="title">Incident Timeline</div>
+            <button class="link" id="btnBackFromTimeline">Back</button>
+            <button class="link menubtn" data-menu="1">Menu</button>
+          </div>
+          <div class="section" style="border-top:0;padding-top:10px;">
+            <div class="kpi">
+              <div class="k">Replay</div>
+              <div class="v">
+                <button class="btn secondary" id="btnReplayPrev">Prev</button>
+                <button class="btn secondary" id="btnReplayPlay">Play</button>
+                <button class="btn secondary" id="btnReplayNext">Next</button>
+                <div class="smallnote" id="replayHint">Loads snapshots from the log (demo).</div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="label">Events</div>
+              <div id="timelineList"></div>
+            </div>
+          </div>
+        </section>
+
+<!-- MAP -->
+        <section class="screen" id="screenMap">
+          <div class="toprow">
+            <div class="title" id="mapTitle">3D Map</div>
+            <button class="link" id="btnBackSetup">Back</button>
+          </div>
+
+          <div class="section" style="border-top:0;padding-top:10px;">
+            <div id="pickHint" class="kpi" style="display:none;">
+              <div class="k">Tap map to set incident <span class="badge blue">Pick mode</span></div>
+              <div class="v">Tap once to set the incident point. You’ll be returned to setup.</div>
+            </div>
+
+            <div id="map"></div>
+
+            <div class="topbar">
+              <span id="timerText">Timer: 05:00</span>
+              <span id="methodText">Method: Foot</span>
+            </div>
+
+            <div class="section">
+              <div class="label">Four perimeter points</div>
+              <div class="list" id="kpis"></div>
+            </div>
+
+            <div class="section">
+              <div class="label">📝 Incident updates</div>
+              <div class="field" style="margin-top:0;">
+                <label>Update note</label>
+                <textarea id="updateNote" placeholder="Witness says suspect ran north for 2 minutes..."></textarea>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="label">Update travel info</div>
+              <div class="label">Minutes: <span id="updMinLabel">5</span></div>
+              <input id="updMinSlider" type="range" min="1" max="60" value="5" style="width:100%;" />
+
+              <div class="label" style="margin-top:10px;">Method</div>
+              <div class="chipgrid" id="updMethod">
+                <div class="chip active" data-um="foot">Foot</div>
+                <div class="chip" data-um="vehicle">Vehicle</div>
+              </div>
+
+              <div class="label" style="margin-top:10px;">Direction</div>
+              <div class="chipgrid5" id="updDir">
+                <div class="chip small active" data-ud="unknown">—</div>
+                <div class="chip small" data-ud="N">N</div>
+                <div class="chip small" data-ud="E">E</div>
+                <div class="chip small" data-ud="S">S</div>
+                <div class="chip small" data-ud="W">W</div>
+              </div>
+
+              <div class="row" style="margin-top:12px;">
+                <button class="btn secondary" id="btnApplyUpdate">APPLY UPDATE</button>
+                <button class="btn ghost" id="btnClearUpdates">CLEAR LOG</button>
+              </div>
+
+              <div class="list" id="updatesLog"></div>
+            </div>
+
+            <div class="section">
+              <div class="row">
+                <button class="btn secondary" id="btnRecenter">RECENTER</button>
+                <button class="btn" id="btnNew2">NEW INCIDENT</button>
+              </div>
+              <div class="smallnote">iOS: Safari → Share → Add to Home Screen</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
