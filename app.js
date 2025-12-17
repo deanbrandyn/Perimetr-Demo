@@ -3,15 +3,16 @@
 const $ = (id) => document.getElementById(id);
 function updateTapDebug(e){
   const el = (e && e.target) ? e.target : null;
-  const id = el && el.id ? ('#'+el.id) : '';
-  const cls = el && el.className ? ('.'+String(el.className).split(' ').filter(Boolean).slice(0,3).join('.')) : '';
-  const tag = el ? el.tagName : 'UNKNOWN';
-  const msg = `Tap debug: ${tag}${id}${cls}`;
-  const b = $('tapDebug');
+  const id = el && el.id ? ("#"+el.id) : "";
+  const cls = el && el.className ? ("."+String(el.className).split(" ").filter(Boolean).slice(0,3).join(".")) : "";
+  const tag = el ? el.tagName : "UNKNOWN";
+  const msg = `Tap HUD: ${tag}${id}${cls}`;
+  const b = document.getElementById("tapHUD");
   if(b) b.textContent = msg;
 }
-document.addEventListener('click', updateTapDebug, true);
-document.addEventListener('touchstart', updateTapDebug, {capture:true, passive:true});
+document.addEventListener("click", updateTapDebug, true);
+document.addEventListener("touchstart", updateTapDebug, {capture:true, passive:true});
+document.addEventListener("pointerdown", updateTapDebug, true);
 
 
 const screens = ["Login","Home","Setup","Incidents","Scenario","Map"].reduce((a,n)=>{a[n]=$("screen"+n);return a;},{});
@@ -963,3 +964,29 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
   }
 });
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  const t = document.getElementById("tapTestBtn");
+  if(t){
+    t.addEventListener("click", ()=>alert("Tap test OK (click event fired)."));
+    t.addEventListener("touchend", ()=>alert("Tap test OK (touchend fired)."), {passive:true});
+  }
+});
+
+function __bind_btnSaveToken(){
+  const el = document.getElementById("btnSaveToken");
+  if(!el) return;
+  const fn = ()=>{ const t=(document.getElementById("token")?.value||"").trim(); if(!t) return alert("Paste pk. token"); localStorage.setItem("mb_token", t); alert("Token saved"); };
+  el.addEventListener("click", fn);
+  el.addEventListener("touchend", fn, {passive:true});
+}
+document.addEventListener("DOMContentLoaded", __bind_btnSaveToken);
+
+function __bind_btnLogin(){
+  const el = document.getElementById("btnLogin");
+  if(!el) return;
+  const fn = ()=>{ const u=(document.getElementById("user")?.value||"").trim(); const p=(document.getElementById("pass")?.value||"").trim(); if(!u||!p) return alert("Enter demo credentials"); localStorage.setItem("session_user",u); go("Home"); };
+  el.addEventListener("click", fn);
+  el.addEventListener("touchend", fn, {passive:true});
+}
+document.addEventListener("DOMContentLoaded", __bind_btnLogin);

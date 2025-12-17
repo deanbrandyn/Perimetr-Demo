@@ -69,3 +69,25 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.35)}
 }
 button, .btn, .link, input, textarea, select { pointer-events:auto !important; }
 .screen, main, body, html { pointer-events:auto; }
+
+.taphud{
+  position:fixed; top:10px; left:10px; right:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:2px solid rgba(37,99,235,.65);
+  background:rgba(0,0,0,.78);
+  color:rgba(255,255,255,.95);
+  font-weight:900;
+  z-index:2147483647;
+  pointer-events:none;
+}
+.taptest{
+  position:fixed; bottom:14px; right:14px;
+  z-index:2147483647;
+  padding:12px 14px;
+  border-radius:16px;
+  border:2px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.95);
+  font-weight:900;
+}
