@@ -56,4 +56,5 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.35)}
 /* Mapbox UI small tweaks */
 .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{display:none !important;}
 
-button, .btn, .link { pointer-events:auto; }
+/* dbg */
+#dbgTap{ -webkit-tap-highlight-color: rgba(0,0,0,0); }
