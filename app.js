@@ -1,18 +1,22 @@
 
 // PERIMETR iOS Demo (3D) - Mapbox GL JS
 const $ = (id) => document.getElementById(id);
-function updateTapDebug(e){
-  const el = (e && e.target) ? e.target : null;
-  const id = el && el.id ? ("#"+el.id) : "";
-  const cls = el && el.className ? ("."+String(el.className).split(" ").filter(Boolean).slice(0,3).join(".")) : "";
-  const tag = el ? el.tagName : "UNKNOWN";
-  const msg = `Tap HUD: ${tag}${id}${cls}`;
-  const b = document.getElementById("tapHUD");
-  if(b) b.textContent = msg;
+function bindTap(id, fn){
+  const el = typeof id === 'string' ? $(id) : id;
+  if(!el) return;
+  let locked = false;
+  const run = (e)=>{
+    if(locked) return;
+    locked = true;
+    try{ fn(e); } finally { setTimeout(()=>{ locked=false; }, 350); }
+  };
+  // Prefer pointer events; fallback to click only (avoid touchend double-fire)
+  if(window.PointerEvent){
+    el.addEventListener('pointerup', run, {passive:true});
+  } else {
+    el.addEventListener('click', run, false);
+  }
 }
-document.addEventListener("click", updateTapDebug, true);
-document.addEventListener("touchstart", updateTapDebug, {capture:true, passive:true});
-document.addEventListener("pointerdown", updateTapDebug, true);
 
 
 const screens = ["Login","Home","Setup","Incidents","Scenario","Map"].reduce((a,n)=>{a[n]=$("screen"+n);return a;},{});
@@ -54,6 +58,8 @@ let method = "foot";
 let direction = "unknown";
 let incident = null; // {lat,lng,label}
 let updates = [];
+function resetPointStates(){}
+
 let pointStates=[{status:'unassigned'},{status:'unassigned'},{status:'unassigned'},{status:'unassigned'}];
 
 let pickMode = false;
@@ -92,13 +98,7 @@ $("btnJumpScenario").onclick = async ()=>{
 };
 
 // Navigation
-$("btnNew").onclick = ()=>{ resetPointStates(); go("Setup"); };
-$("btnActive").onclick = ()=>{ renderIncidentList(); go("Incidents"); };
-$("btnBackHome").onclick = ()=>go("Home");
-$("btnBackHome2").onclick = ()=>go("Home");
 $("btnBackSetup").onclick = ()=>{ pickMode=false; $("pickHint").style.display="none"; go("Setup"); };
-$("btnNew2").onclick = ()=>{ resetPointStates(); pickMode=false; $("pickHint").style.display="none"; go("Setup"); };
-
 $("btnTapToSet").onclick = ()=> {
   ensureMap();
   pickMode = true;
@@ -903,13 +903,18 @@ $("btnClearUpdates").onclick = ()=>{
 $("btnRecenter").onclick = ()=>{ if(map && incident){ map.easeTo({center:[incident.lng,incident.lat], zoom: 16, pitch:55}); } };
 
 // Login/Logout
- saveSession();
+$("btnLogin").onclick = ()=>{
+  const dept = ($("loginDept").value||"").trim();
+  const id = ($("loginId").value||"").trim();
+  const pin = ($("loginPin").value||"").trim();
+  if(!dept||!id||!pin) return alert("Enter dept, ID, and PIN.");
+  if(pin!=="1234") return alert("Demo PIN is 1234.");
+  if(!getToken()) return alert("Paste and save a Mapbox token first (needed for 3D map).");
+  session = {dept,id}; saveSession();
   $("whoami").textContent = `${session.dept} • ID ${session.id}`;
   seedDemoIncidentsIfEmpty().finally(()=>{ loadIncidents(); });
   go("Home");
 };
-$("btnLogout").onclick = ()=>{ resetPointStates(); clearSession(); go("Login"); };
-
 // Seed demo incidents (Miramar) if empty
 async function seedDemoIncidentsIfEmpty(){
   loadIncidents();
@@ -935,6 +940,7 @@ async function seedDemoIncidentsIfEmpty(){
 
 // Boot
 setGpsStatus("idle");
+// SW disabled for tap stability
 )); }
 if(session){
   $("whoami").textContent = `${session.dept} • ID ${session.id}`;
@@ -943,50 +949,56 @@ if(session){
   go("Login");
 }
 
-document.addEventListener("DOMContentLoaded", ()=>{
-  const bSave = $("btnSaveToken");
-  if(bSave){
-    bSave.addEventListener("click", ()=>{
-      const t = ($("token")?.value||"").trim();
-      if(!t) return alert("Paste a Mapbox public token (pk.…) and tap Save.");
-      localStorage.setItem("mb_token", t);
-      alert("Token saved on this device.");
-    });
-  }
-  const bLogin = $("btnLogin");
-  if(bLogin){
-    bLogin.addEventListener("click", ()=>{
-      const u = ($("user")?.value||"").trim();
-      const p = ($("pass")?.value||"").trim();
-      if(!u || !p) return alert("Enter demo credentials.");
-      localStorage.setItem("session_user", u);
-      go("Home");
-    });
-  }
-});
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  const t = document.getElementById("tapTestBtn");
-  if(t){
-    t.addEventListener("click", ()=>alert("Tap test OK (click event fired)."));
-    t.addEventListener("touchend", ()=>alert("Tap test OK (touchend fired)."), {passive:true});
-  }
+  // Login screen
+  bindTap("btnSaveToken", ()=>{
+    const t = ($("token")?.value || "").trim();
+    if(!t) return alert("Paste a Mapbox public token (pk.…) and tap Save.");
+    localStorage.setItem("mb_token", t);
+    alert("Token saved on this device.");
+  });
+
+  bindTap("btnLogin", ()=>{
+    const u = ($("user")?.value || "").trim();
+    const p = ($("pass")?.value || "").trim();
+    if(!u || !p) return alert("Enter demo credentials.");
+    localStorage.setItem("session_user", u);
+    go("Home");
+  });
+
+  // Home / Map actions
+  bindTap("btnNew", ()=>{
+    resetPointStates?.();
+    incident = null;
+    updates = [];
+    try{ $("addr").value=""; }catch{}
+    go("Setup");
+  });
+
+  bindTap("btnNew2", ()=>{
+    resetPointStates?.();
+    incident = null;
+    updates = [];
+    pickMode=false;
+    try{ $("pickHint").style.display="none"; }catch{}
+    go("Setup");
+  });
+
+  bindTap("btnActive", ()=>{
+    renderIncidentList?.();
+    go("Incidents");
+  });
+
+  bindTap("btnBackHome", ()=>go("Home"));
+  bindTap("btnBackHome2", ()=>go("Home"));
+
+  bindTap("btnLogout", ()=>{
+    resetPointStates?.();
+    incident = null;
+    updates = [];
+    clearSession?.();
+    go("Login");
+  });
 });
 
-function __bind_btnSaveToken(){
-  const el = document.getElementById("btnSaveToken");
-  if(!el) return;
-  const fn = ()=>{ const t=(document.getElementById("token")?.value||"").trim(); if(!t) return alert("Paste pk. token"); localStorage.setItem("mb_token", t); alert("Token saved"); };
-  el.addEventListener("click", fn);
-  el.addEventListener("touchend", fn, {passive:true});
-}
-document.addEventListener("DOMContentLoaded", __bind_btnSaveToken);
-
-function __bind_btnLogin(){
-  const el = document.getElementById("btnLogin");
-  if(!el) return;
-  const fn = ()=>{ const u=(document.getElementById("user")?.value||"").trim(); const p=(document.getElementById("pass")?.value||"").trim(); if(!u||!p) return alert("Enter demo credentials"); localStorage.setItem("session_user",u); go("Home"); };
-  el.addEventListener("click", fn);
-  el.addEventListener("touchend", fn, {passive:true});
-}
-document.addEventListener("DOMContentLoaded", __bind_btnLogin);

@@ -56,38 +56,4 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.35)}
 /* Mapbox UI small tweaks */
 .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{display:none !important;}
 
-.tapdebug{
-  position:sticky; top:0;
-  margin:0 0 10px 0;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(37,99,235,.45);
-  background:rgba(37,99,235,.12);
-  color:rgba(255,255,255,.92);
-  font-weight:900;
-  z-index:999999;
-}
-button, .btn, .link, input, textarea, select { pointer-events:auto !important; }
-.screen, main, body, html { pointer-events:auto; }
-
-.taphud{
-  position:fixed; top:10px; left:10px; right:10px;
-  padding:10px 12px;
-  border-radius:14px;
-  border:2px solid rgba(37,99,235,.65);
-  background:rgba(0,0,0,.78);
-  color:rgba(255,255,255,.95);
-  font-weight:900;
-  z-index:2147483647;
-  pointer-events:none;
-}
-.taptest{
-  position:fixed; bottom:14px; right:14px;
-  z-index:2147483647;
-  padding:12px 14px;
-  border-radius:16px;
-  border:2px solid rgba(255,255,255,.18);
-  background:rgba(255,255,255,.08);
-  color:rgba(255,255,255,.95);
-  font-weight:900;
-}
+button, .btn, .link { pointer-events:auto; }
