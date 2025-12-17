@@ -56,44 +56,16 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.35)}
 /* Mapbox UI small tweaks */
 .mapboxgl-ctrl-bottom-left,.mapboxgl-ctrl-bottom-right{display:none !important;}
 
-.sheet{
-  position:fixed; inset:0;
-  display:none;
-  align-items:flex-end;
-  justify-content:center;
-  background:rgba(0,0,0,.55);
-  z-index:9999;
-  padding:18px 14px calc(18px + env(safe-area-inset-bottom));
-}
-.sheetCard{
-  width:min(520px, 100%);
-  background:rgba(15,15,15,.98);
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:22px;
-  padding:14px;
-  box-shadow:0 30px 80px rgba(0,0,0,.6);
-}
-.sheetTop{
-  display:flex; align-items:center; justify-content:space-between;
-  margin-bottom:10px;
-}
-.sheetTitle{ font-weight:900; letter-spacing:.3px; }
-.btn.danger{
-  border-color:rgba(239,68,68,.55);
-  background:rgba(239,68,68,.14);
-}
-.offline{
-  position:sticky;
-  top:0;
+.tapdebug{
+  position:sticky; top:0;
   margin:0 0 10px 0;
   padding:10px 12px;
   border-radius:14px;
-  border:1px solid rgba(245,158,11,.45);
-  background:rgba(245,158,11,.12);
+  border:1px solid rgba(37,99,235,.45);
+  background:rgba(37,99,235,.12);
   color:rgba(255,255,255,.92);
-  font-weight:800;
-  z-index:5;
+  font-weight:900;
+  z-index:999999;
 }
-
-.btn, .link, button{ pointer-events:auto; }
-.screen{ -webkit-overflow-scrolling: touch; }
+button, .btn, .link, input, textarea, select { pointer-events:auto !important; }
+.screen, main, body, html { pointer-events:auto; }

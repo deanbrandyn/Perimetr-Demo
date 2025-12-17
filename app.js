@@ -1,13 +1,17 @@
 
 // PERIMETR iOS Demo (3D) - Mapbox GL JS
 const $ = (id) => document.getElementById(id);
-function bindTap(id, fn){
-  const el = $(id);
-  if(!el) return;
-  const handler = (e)=>{ try{ e.preventDefault(); e.stopPropagation(); }catch{} fn(e); };
-  el.addEventListener('pointerup', handler, {passive:false});
-  el.addEventListener('click', handler, {passive:false});
+function updateTapDebug(e){
+  const el = (e && e.target) ? e.target : null;
+  const id = el && el.id ? ('#'+el.id) : '';
+  const cls = el && el.className ? ('.'+String(el.className).split(' ').filter(Boolean).slice(0,3).join('.')) : '';
+  const tag = el ? el.tagName : 'UNKNOWN';
+  const msg = `Tap debug: ${tag}${id}${cls}`;
+  const b = $('tapDebug');
+  if(b) b.textContent = msg;
 }
+document.addEventListener('click', updateTapDebug, true);
+document.addEventListener('touchstart', updateTapDebug, {capture:true, passive:true});
 
 
 const screens = ["Login","Home","Setup","Incidents","Scenario","Map"].reduce((a,n)=>{a[n]=$("screen"+n);return a;},{});
@@ -49,9 +53,6 @@ let method = "foot";
 let direction = "unknown";
 let incident = null; // {lat,lng,label}
 let updates = [];
-let timeline = []; // {ts,type,msg,snap}
-let replay = {idx:-1, timer:null};
-
 let pointStates=[{status:'unassigned'},{status:'unassigned'},{status:'unassigned'},{status:'unassigned'}];
 
 let pickMode = false;
@@ -89,25 +90,13 @@ $("btnJumpScenario").onclick = async ()=>{
   }catch(e){ console.error(e); alert("Scenario failed. Check token/network."); }
 };
 
-
-function openMenu(){ const s=$("menuSheet"); if(!s) return; s.style.display="flex"; s.setAttribute("aria-hidden","false"); }
-function closeMenu(){ const s=$("menuSheet"); if(!s) return; s.style.display="none"; s.setAttribute("aria-hidden","true"); }
-function updateOfflineBanner(){
-  isOnline = navigator.onLine;
-  const b = $("offlineBanner");
-  if(!b) return;
-  b.style.display = isOnline ? "none" : "block";
-}
-window.addEventListener("online", updateOfflineBanner);
-window.addEventListener("offline", updateOfflineBanner);
-
 // Navigation
-bindTap("btnNew", ()=>{ resetPointStates(); incident=null; updates=[]; go("Setup"); });
+$("btnNew").onclick = ()=>{ resetPointStates(); go("Setup"); };
 $("btnActive").onclick = ()=>{ renderIncidentList(); go("Incidents"); };
 $("btnBackHome").onclick = ()=>go("Home");
 $("btnBackHome2").onclick = ()=>go("Home");
 $("btnBackSetup").onclick = ()=>{ pickMode=false; $("pickHint").style.display="none"; go("Setup"); };
-bindTap("btnNew2", ()=>{ resetPointStates(); incident=null; updates=[]; pickMode=false; $("pickHint").style.display="none"; go("Setup"); });
+$("btnNew2").onclick = ()=>{ resetPointStates(); pickMode=false; $("pickHint").style.display="none"; go("Setup"); };
 
 $("btnTapToSet").onclick = ()=> {
   ensureMap();
@@ -118,58 +107,6 @@ $("btnTapToSet").onclick = ()=> {
 };
 
 $("btnClear").onclick = ()=>{ incident=null; resetPointStates(); $("addr").value=""; $("addrHelp").textContent="After setting a location, generate the perimeter."; alert("Cleared."); };
-
-
-function nowTS(){
-  const d = new Date();
-  return d.toLocaleString();
-}
-function snapshotState(){
-  // minimal snapshot for replay (incident + points + statuses)
-  const pts = (window._lastPts||[]).map(p=>({name:p.name, corner:p.corner, lat:p.lat, lng:p.lng, label:p.label||'', status:p.status||'unassigned'}));
-  return { incident: incident ? {...incident}: null, pts, minutes, method, direction, updates: JSON.parse(JSON.stringify(updates||[])) };
-}
-function logTimeline(type, msg, withSnap=true){
-  const entry = { ts: nowTS(), type, msg, snap: withSnap ? snapshotState() : null };
-  timeline.unshift(entry);
-  // keep last 50
-  timeline = timeline.slice(0,50);
-  renderTimeline();
-}
-function renderTimeline(){
-  const list = $("timelineList");
-  if(!list) return;
-  list.innerHTML = "";
-  timeline.forEach((e, idx)=>{
-    const div = document.createElement("div");
-    div.className="kpi";
-    div.innerHTML = `<div class="k">${e.ts} • ${e.type}</div><div class="v">${e.msg}</div>`;
-    div.onclick = ()=>{ if(e.snap) { applySnapshot(e.snap); replay.idx = idx; } };
-    list.appendChild(div);
-  });
-}
-function applySnapshot(s){
-  if(!s) return;
-  incident = s.incident;
-  minutes = s.minutes; method=s.method; direction=s.direction;
-  updates = s.updates || [];
-  syncUpdatesUI();
-  // rebuild points
-  const pts = (s.pts||[]).map(p=>({...p}));
-  window._lastPts = pts;
-  // reset pointStates from snapshot
-  pointStates = pts.map(p=>({status:p.status||'unassigned', unit:''}));
-  // update map if ready
-  if(map && incident){
-    setMarker(incidentMarker, [incident.lng, incident.lat], true);
-    setGeojson(perimeterIds.source, polyGeo(pts));
-    setGeojson(pointsIds.source, pointsGeo(pts));
-    renderPointKPIs(pts);
-    clearDragMarkers();
-    createDragMarkers(pts);
-    try{ fitToPoints(pts); }catch{}
-  }
-}
 
 // Storage
 function loadIncidents(){ try{ incidents = JSON.parse(localStorage.getItem(deptKey())||"[]"); }catch{ incidents=[]; } }
@@ -491,9 +428,6 @@ let sourcesReady=false;
 let perimeterIds = {source:"perimetr-perimeter", layerFill:"perimetr-fill", layerLine:"perimetr-line"};
 let pointsIds = {source:"perimetr-points", layer:"perimetr-points-layer"};
 let using3d=false;
-let readOnly=false; // read-only view when opened via shared link
-let isOnline = navigator.onLine;
-
 
 function styleUrl(){
   return mapStyle==="satellite" ? "mapbox://styles/mapbox/satellite-streets-v12" : "mapbox://styles/mapbox/streets-v12";
@@ -538,14 +472,14 @@ function ensureMap(){
   });
 
   map.on("click", async (e)=>{
-  if(readOnly) return;
-  if(!pickMode) return; // disabled unless explicitly enabled
-  pickMode=false;
-  $("pickHint").style.display="none";
-  await setIncident(e.lngLat.lat, e.lngLat.lng, "Manual placement");
-  go("Setup");
-  logTimeline("Incident","Manual placement set");
-});
+    if(!e?.lngLat) return;
+    await setIncident(e.lngLat.lat, e.lngLat.lng, "Tap");
+    if(pickMode){
+      pickMode=false;
+      $("pickHint").style.display="none";
+      go("Setup");
+    }
+  });
 }
 
 function add3dBuildings(){
@@ -624,7 +558,6 @@ async function setIncident(lat,lng,why){
   if(map) { /* map available */ }
   const labelRaw = await mbReverse(lng,lat).catch(()=> "");
   incident = { lat, lng, label: shortLabel(labelRaw) || "Incident" };
-  logTimeline("Incident", `Set incident: ${incident.label}`, false);
   // Try to display as an intersection label when possible
   try{
     const roads = await mbRoadNamesAt(lng, lat);
@@ -699,19 +632,12 @@ function pointsGeo(pts){
     type:"FeatureCollection",
     features: pts.map(p=>({
       type:"Feature",
-      properties:{name:p.name, corner:p.corner, label:(p.label||''), status:(p.status||'unassigned')},
+      properties:{name:p.name, corner:p.corner, label:p.label||""},
       geometry:{type:"Point", coordinates:[p.lng, p.lat]}
     }))
   };
 }
 function rebuildPerimeterLayers(pts){ setGeojson(perimeterIds.source, polyGeo(pts)); setGeojson(pointsIds.source, pointsGeo(pts)); }
-
-function fitToPoints(pts){
-  if(!map || !incident) return;
-  const b = new mapboxgl.LngLatBounds([incident.lng, incident.lat],[incident.lng, incident.lat]);
-  pts.forEach(p=>b.extend([p.lng,p.lat]));
-  map.fitBounds(b, {padding: 50, duration: 0, maxZoom: 15});
-}
 
 function polyGeo(pts){
   const ring = pts.map(p=>[p.lng,p.lat]);
@@ -981,7 +907,7 @@ $("btnRecenter").onclick = ()=>{ if(map && incident){ map.easeTo({center:[incide
   seedDemoIncidentsIfEmpty().finally(()=>{ loadIncidents(); });
   go("Home");
 };
-bindTap("btnLogout", ()=>{ resetPointStates(); incident=null; updates=[]; clearSession(); go("Login"); });
+$("btnLogout").onclick = ()=>{ resetPointStates(); clearSession(); go("Login"); };
 
 // Seed demo incidents (Miramar) if empty
 async function seedDemoIncidentsIfEmpty(){
@@ -1008,7 +934,6 @@ async function seedDemoIncidentsIfEmpty(){
 
 // Boot
 setGpsStatus("idle");
-// Service worker disabled for demo stability
 )); }
 if(session){
   $("whoami").textContent = `${session.dept} • ID ${session.id}`;
@@ -1018,141 +943,23 @@ if(session){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  // Menu buttons (tap-safe)
-  document.querySelectorAll(".menubtn").forEach(el=>{
-    el.addEventListener("pointerup", (e)=>{ e.preventDefault(); e.stopPropagation(); openMenu(); }, {passive:false});
-    el.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); openMenu(); }, {passive:false});
-  });
-  bindTap("btnCloseMenu", ()=>closeMenu());
-  const sheet = $("menuSheet");
-  if(sheet){ sheet.addEventListener("pointerup",(e)=>{ if(e.target===sheet) closeMenu(); }, {passive:false}); }
-
-  bindTap("menuHome", ()=>{ closeMenu(); go("Home"); });
-  bindTap("menuNew", ()=>{ closeMenu(); resetPointStates(); incident=null; updates=[]; syncUpdatesUI(); logTimeline("Action","New incident started", false); go("Setup"); });
-  bindTap("menuIncidents", ()=>{ closeMenu(); renderIncidentList(); go("Incidents"); });
-  bindTap("menuScenario", ()=>{ closeMenu(); go("Scenario"); });
-  bindTap("menuTimeline", ()=>{ closeMenu(); go("Timeline"); renderTimeline(); });
-  bindTap("menuLogout", ()=>{ closeMenu(); resetPointStates(); incident=null; updates=[]; clearSession(); logTimeline("Auth","Logged out", false); go("Login"); });
-  bindTap("menuShare", ()=>{ closeMenu(); shareReadOnly(); });
-
-  bindTap("btnBackFromScenario", ()=>go("Home"));
-  bindTap("btnBackFromTimeline", ()=>go("Home"));
-  bindTap("btnScenarioLoad", ()=>loadScenario());
-
-  bindTap("btnReplayPrev", ()=>replayStep(-1));
-  bindTap("btnReplayNext", ()=>replayStep(1));
-  bindTap("btnReplayPlay", ()=>replayToggle());
-
-  updateOfflineBanner();
-});
-
-function shareReadOnly(){
-  if(!incident || !window._lastPts || !window._lastPts.length){
-    return alert("Generate a perimeter first, then share.");
+  const bSave = $("btnSaveToken");
+  if(bSave){
+    bSave.addEventListener("click", ()=>{
+      const t = ($("token")?.value||"").trim();
+      if(!t) return alert("Paste a Mapbox public token (pk.…) and tap Save.");
+      localStorage.setItem("mb_token", t);
+      alert("Token saved on this device.");
+    });
   }
-  const payload = { v:1, incident, minutes, method, direction, updates, pts: window._lastPts.map(p=>({name:p.name, corner:p.corner, lat:p.lat, lng:p.lng, label:p.label||'', status:p.status||'unassigned'})) };
-  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  const url = location.origin + location.pathname + "#share=" + b64;
-  // Copy if available
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(()=>alert("Read-only link copied to clipboard.")).catch(()=>prompt("Copy this link:", url));
-  }else{
-    prompt("Copy this link:", url);
+  const bLogin = $("btnLogin");
+  if(bLogin){
+    bLogin.addEventListener("click", ()=>{
+      const u = ($("user")?.value||"").trim();
+      const p = ($("pass")?.value||"").trim();
+      if(!u || !p) return alert("Enter demo credentials.");
+      localStorage.setItem("session_user", u);
+      go("Home");
+    });
   }
-  logTimeline("Share","Generated read-only share link", false);
-}
-function loadShareFromHash(){
-  const h = location.hash || "";
-  const m = h.match(/#share=([A-Za-z0-9+/=]+)/);
-  if(!m) return false;
-  try{
-    const jsonStr = decodeURIComponent(escape(atob(m[1])));
-    const p = JSON.parse(jsonStr);
-    readOnly = true;
-    incident = p.incident;
-    minutes = p.minutes; method = p.method; direction = p.direction;
-    updates = p.updates || [];
-    syncUpdatesUI();
-    const pts = (p.pts||[]).map(x=>({...x}));
-    window._lastPts = pts;
-    pointStates = pts.map(pt=>({status:pt.status||'unassigned', unit:''}));
-    go("Map");
-    setTimeout(async ()=>{
-      try{ ensureMap(); }catch{}
-      if(map && incident){
-        setMarker(incidentMarker, [incident.lng, incident.lat], true);
-        setGeojson(perimeterIds.source, polyGeo(pts));
-        setGeojson(pointsIds.source, pointsGeo(pts));
-        renderPointKPIs(pts);
-        clearDragMarkers(); // no dragging in read-only
-        fitToPoints(pts);
-        $("mapTitle").textContent = "Read-only shared perimeter";
-      }
-    }, 120);
-    logTimeline("Share","Opened read-only shared perimeter", false);
-    return true;
-  }catch(e){
-    console.error(e);
-    return false;
-  }
-}
-window.addEventListener("hashchange", ()=>{ loadShareFromHash(); });
-
-function replayStep(delta){
-  if(!timeline.length) return;
-  // find next entry with snapshot
-  let i = (replay.idx<0) ? 0 : replay.idx;
-  i += delta;
-  i = Math.max(0, Math.min(timeline.length-1, i));
-  // move until snapshot found
-  const stepDir = delta>=0 ? 1 : -1;
-  while(i>=0 && i<timeline.length && !timeline[i].snap){
-    i += stepDir;
-  }
-  if(i<0 || i>=timeline.length) return;
-  replay.idx = i;
-  applySnapshot(timeline[i].snap);
-  const hint = $("replayHint");
-  if(hint) hint.textContent = `Showing: ${timeline[i].ts} • ${timeline[i].type}`;
-}
-function replayToggle(){
-  if(replay.timer){
-    clearInterval(replay.timer);
-    replay.timer=null;
-    $("btnReplayPlay").textContent="Play";
-    return;
-  }
-  $("btnReplayPlay").textContent="Stop";
-  replay.timer=setInterval(()=>{
-    const before = replay.idx;
-    replayStep(1);
-    if(replay.idx===before){ clearInterval(replay.timer); replay.timer=null; $("btnReplayPlay").textContent="Play"; }
-  }, 900);
-}
-
-async function loadScenario(){
-  try{
-    resetPointStates();
-    // Approx Miramar Pkwy & Flamingo Rd
-    minutes = 5; method = "foot"; direction = "N";
-    $("minSlider").value=minutes; $("minLabel").textContent=minutes;
-    document.querySelectorAll("#methodGrid .chip").forEach(x=>x.classList.toggle("active", x.dataset.method===method));
-    document.querySelectorAll("#dirGrid .chip").forEach(x=>x.classList.toggle("active", x.dataset.dir===direction));
-    await setIncident(25.9869, -80.3149, "Scenario");
-    go("Map");
-    await drawPerimeter();
-    logTimeline("Scenario","Loaded Miramar command demo scenario");
-  }catch(e){
-    console.error(e);
-    alert("Scenario failed. Your Mapbox token may not allow required APIs (Directions/Geocoding/Tilequery) or network may be blocked.");
-  }
-}
-
-bindTap("btnLogin", ()=>{
-  // Demo login: token is optional for navigation, required for maps/perimeter.
-  const u = $("user").value.trim();
-  const p = $("pass").value.trim();
-  if(!u || !p) return alert("Enter demo credentials.");
-  localStorage.setItem("session_user", u);
-  go("Home");
 });
